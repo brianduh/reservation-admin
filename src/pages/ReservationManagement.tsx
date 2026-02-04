@@ -88,18 +88,10 @@ export default function ReservationManagement() {
             // 由於後端已經根據時間過濾了，不需要再過濾
             setAvailableTables(response.tables);
 
-            // 自動推薦合適桌號
-            if (response.tables.length > 0) {
-                const recommended = response.tables.filter(
-                    (table) => table.minGuests <= guests && table.maxGuests >= guests
-                );
-                if (recommended.length > 0) {
-                    // 推薦第一個合適的桌號
-                    setSelectedTableIds([recommended[0].tableId]);
-                    message.success(`已為您推薦：${recommended[0].areaName}-${recommended[0].tableName}`);
-                }
-            } else {
-                message.warning('該時段沒有可用桌號，系統將自動分配');
+            // 不再自動推薦桌號，讓用戶自己選擇
+            // 如果沒有可用桌號，顯示提示
+            if (response.tables.length === 0) {
+                message.warning('該時段沒有可用桌號，請選擇其他時段');
             }
         } catch (error: any) {
             console.error('Failed to fetch available tables:', error);
@@ -188,6 +180,45 @@ export default function ReservationManagement() {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
+
+            console.log('=== 提交訂位 ===');
+            console.log('選擇的桌號 IDs:', selectedTableIds);
+            console.log('選擇的桌號詳情:', availableTables
+                .filter(t => selectedTableIds.includes(t.tableId))
+                .map(t => `${t.areaName}-${t.tableName} (${t.tableId})`)
+            );
+
+            // 如果有選擇桌號，在提交前再次驗證餐桌可用性
+            if (selectedTableIds.length > 0) {
+                const revalidationParams = {
+                    restaurantId: selectedRestaurant!.id,
+                    date: values.reservationDate.format('YYYY-MM-DD'),
+                    guests: values.guestCount,
+                    time: values.reservationTime.format('HH:mm'),
+                };
+
+                console.log('提交前重新驗證餐桌可用性，參數:', revalidationParams);
+                const revalidation = await checkAvailability(revalidationParams);
+
+                // 檢查選擇的桌號是否仍在可用列表中
+                const selectedTableInResponse = revalidation.tables.find(
+                    (t) => selectedTableIds.includes(t.tableId)
+                );
+
+                if (!selectedTableInResponse) {
+                    message.error('您選擇的桌號剛剛被預訂了，請重新選擇桌號');
+                    // 重新查詢可用桌號
+                    await fetchAvailableTables(
+                        values.reservationDate,
+                        values.reservationTime,
+                        values.guestCount
+                    );
+                    return;
+                }
+
+                console.log('餐桌可用性驗證通過');
+            }
+
             const requestData: ReservationRequest = {
                 restaurantId: selectedRestaurant!.id,
                 customerName: values.customerName,
@@ -210,8 +241,10 @@ export default function ReservationManagement() {
 
             setIsModalOpen(false);
             fetchReservations();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to save reservation:', error);
+            const errorMsg = error?.response?.data?.message || error?.message || '建立訂位失敗';
+            message.error(errorMsg);
         }
     };
 
@@ -287,6 +320,13 @@ export default function ReservationManagement() {
             key: 'guestCount',
             width: 80,
             align: 'center' as const,
+        },
+        {
+            title: '用餐時間',
+            dataIndex: 'diningDurationMinutes',
+            key: 'diningDurationMinutes',
+            width: 120,
+            render: (minutes: number) => `${minutes} 分`,
         },
         {
             title: '桌號',
@@ -497,6 +537,28 @@ export default function ReservationManagement() {
                         />
                     </Form.Item>
 
+                    <Form.Item
+                        label="用餐時間（分鐘）"
+                        name="diningDurationMinutes"
+                        tooltip="留空則系統將依餐期自動設定"
+                        rules={[
+                            {
+                                type: 'number',
+                                min: 30,
+                                max: 300,
+                                message: '用餐時間需在 30-300 分鐘之間'
+                            }
+                        ]}
+                    >
+                        <InputNumber
+                            min={30}
+                            max={300}
+                            step={15}
+                            style={{ width: '100%' }}
+                            placeholder="留空自動設定（建議90分鐘）"
+                        />
+                    </Form.Item>
+
                     {/* 桌號選擇器 */}
                     <Form.Item label="選擇桌號（選填，未選則自動分配）">
                         {loadingTables ? (
@@ -514,6 +576,7 @@ export default function ReservationManagement() {
 
                                 const currentTime = form.getFieldValue('reservationTime');
                                 const timeStr = currentTime ? currentTime.format('HH:mm') : '';
+                                const hasTimeSelected = timeStr.length > 0;
 
                                 return (
                                     <Collapse
@@ -529,16 +592,29 @@ export default function ReservationManagement() {
                                                 >
                                                     <Space direction="vertical" style={{ width: '100%' }}>
                                                         {tables.map((table) => {
-                                                            const isAvailable = timeStr && table.availableTimes && table.availableTimes.includes(timeStr);
+                                                            // 當沒選擇時間時，不判斷是否可用
+                                                            // availableTimes 是 LocalTime[]，格式可能是 "12:00:00"，需要與 "12:00" 進行比較
+                                                            const isAvailable = hasTimeSelected && table.availableTimes && table.availableTimes.some(
+                                                                (availableTime) => {
+                                                                    // availableTime 可能是字串或物件
+                                                                    const timeStr2 = typeof availableTime === 'string'
+                                                                        ? availableTime
+                                                                        : availableTime.toString();
+                                                                    // 移除秒數部分，只保留 HH:mm
+                                                                    const availableTimeFormatted = timeStr2.substring(0, 5);
+                                                                    return availableTimeFormatted === timeStr;
+                                                                }
+                                                            );
                                                             return (
                                                                 <Checkbox
                                                                     key={table.tableId}
                                                                     value={table.tableId}
-                                                                    disabled={!isAvailable}
+                                                                    disabled={hasTimeSelected && !isAvailable}
                                                                 >
                                                                     <Space>
                                                                         <span>{table.tableName} ({table.minGuests}-{table.maxGuests}人)</span>
-                                                                        {!isAvailable && <Tag color="red">已佔用</Tag>}
+                                                                        {!hasTimeSelected && <Tag color="blue">請先選擇時間</Tag>}
+                                                                        {hasTimeSelected && !isAvailable && <Tag color="red">已佔用</Tag>}
                                                                         {isAvailable && selectedTableIds.includes(table.tableId) && <Tag color="green">推薦</Tag>}
                                                                     </Space>
                                                                 </Checkbox>

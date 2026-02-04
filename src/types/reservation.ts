@@ -51,6 +51,7 @@ export interface Reservation {
     reservationDate: string;
     reservationTime: string;
     guestCount: number;
+    diningDurationMinutes: number;
     status: ReservationStatus;
     assignedTables: AssignedTableInfo[];
     isMultiTable: boolean;
@@ -77,6 +78,7 @@ export interface ReservationRequest {
     reservationDate: string;
     reservationTime: string;
     guestCount: number;
+    diningDurationMinutes?: number;
     tableIds?: string[];
     allowMultiTable?: boolean;
     note?: string;
