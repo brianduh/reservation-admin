@@ -7,9 +7,11 @@ export interface DateTypeMealPeriod {
   dateTypeId: string | null;
   dateTypeName: string;
   dateTypeCode: string;
+  dateTypeSortOrder: number;
   mealPeriodId: string | null;
   mealPeriodName: string;
   mealPeriodCode: string;
+  mealPeriodSortOrder: number;
   startTime: string;
   endTime: string;
   nextDayFlag: boolean;

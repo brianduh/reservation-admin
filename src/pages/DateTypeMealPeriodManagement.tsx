@@ -34,12 +34,9 @@ export default function DateTypeMealPeriodManagement() {
   const [editingRecord, setEditingRecord] = useState<DateTypeMealPeriod | null>(null);
   const [form] = Form.useForm();
 
+  // 後端已排序，直接使用返回的資料
   const sortedData = useMemo(() => {
-    return [...dateTypeMealPeriods].sort((a, b) => {
-      const dateTypeCompare = a.dateTypeCode.localeCompare(b.dateTypeCode);
-      if (dateTypeCompare !== 0) return dateTypeCompare;
-      return a.mealPeriodCode.localeCompare(b.mealPeriodCode);
-    });
+    return dateTypeMealPeriods;
   }, [dateTypeMealPeriods]);
 
   const handleAdd = () => {
