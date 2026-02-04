@@ -228,6 +228,7 @@ export default function ReservationManagement() {
                 reservationDate: values.reservationDate.format('YYYY-MM-DD'),
                 reservationTime: values.reservationTime ? values.reservationTime.format('HH:mm') : undefined,
                 guestCount: values.guestCount,
+                diningDurationMinutes: values.diningDurationMinutes,
                 note: values.note,
                 // 如果有選擇桌號，則傳入 tableIds
                 ...(selectedTableIds.length > 0 ? { tableIds: selectedTableIds } : {}),
