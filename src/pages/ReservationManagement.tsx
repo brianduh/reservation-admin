@@ -170,7 +170,9 @@ export default function ReservationManagement() {
             reservationDate: dayjs(record.reservationDate),
             reservationTime: dayjs(record.reservationTime, 'HH:mm'),
         });
-        setSelectedTableIds(record.assignedTables?.map(t => t.tableId) || []);
+        // 清空桌號選擇，不自動帶入現有桌號
+        // 如果用戶需要修改桌號，需要重新查詢並選擇
+        setSelectedTableIds([]);
         setAvailableTables([]);
         setLoadingTables(false);
         setIsModalOpen(true);
