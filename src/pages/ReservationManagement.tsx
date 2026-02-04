@@ -234,6 +234,10 @@ export default function ReservationManagement() {
                 ...(selectedTableIds.length > 0 ? { tableIds: selectedTableIds } : {}),
             };
 
+            console.log('=== 提交的請求數據 ===');
+            console.log('完整requestData:', requestData);
+            console.log('用餐時間:', values.diningDurationMinutes);
+
             if (editingReservation) {
                 await updateReservation(editingReservation.id, requestData);
                 message.success('訂位更新成功');
