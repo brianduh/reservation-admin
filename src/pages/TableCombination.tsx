@@ -3,6 +3,7 @@ import { Table, Button, Tag, Modal, Form, Input, InputNumber, Switch, Space, mes
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useCombinations } from '../hooks/useCombinations';
 import { useCombinableTables } from '../hooks/useCombinableTables';
+import { combinationsApi } from '../api/combinations';
 import type { TableCombination, TableCombinationRequest, TableCombinationItemRequest } from '../api/combinations';
 import type { Table as TableType } from '../api/tables';
 import { useSearchParams } from 'react-router-dom';
