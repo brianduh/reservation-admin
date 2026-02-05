@@ -4,7 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useCombinations } from '../hooks/useCombinations';
 import { useCombinableTables } from '../hooks/useCombinableTables';
 import type { TableCombination, TableCombinationRequest, TableCombinationItemRequest } from '../api/combinations';
-import type { Table } from '../api/tables';
+import type { Table as TableType } from '../api/tables';
 import { useSearchParams } from 'react-router-dom';
 import { useRestaurantContext } from '../contexts/RestaurantContext';
 
@@ -259,7 +259,7 @@ export default function TableCombinationManagement() {
                   if (!acc[areaName]) acc[areaName] = [];
                   acc[areaName].push(table);
                   return acc;
-                }, {} as Record<string, Table[]>);
+                }, {} as Record<string, TableType[]>);
 
                 return (
                   <Collapse defaultActiveKey={Object.keys(groupedByArea)} size="small">
