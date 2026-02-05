@@ -9,6 +9,7 @@ export interface DateType {
   description?: string;
   sortOrder: number;
   isActive: boolean;
+  color?: string; // 背景顏色 (Hex 格式: #RRGGBB)
   createdAt: string;
   updatedAt: string;
 }
@@ -20,6 +21,7 @@ export interface DateTypeRequest {
   description?: string;
   sortOrder?: number;
   isActive?: boolean;
+  color?: string; // 背景顏色 (Hex 格式: #RRGGBB)
 }
 
 export const dateTypesApi = {

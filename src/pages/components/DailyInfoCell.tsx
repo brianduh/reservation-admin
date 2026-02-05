@@ -44,10 +44,28 @@ export default function DailyInfoCell({ date, dailyInfo, dateTypesMap, onClick }
     ? dateTypesMap.get(dailyInfo.dateTypeId)
     : null;
 
-  // 獲取顏色配置
-  const colorConfig = dateTypeInfo?.color
-    ? DATE_TYPE_COLORS[dateTypeInfo.color] || DATE_TYPE_COLORS['NORMAL']
-    : null;
+  // 獲取背景顏色（從 dateType 的 color 欄位）
+  const backgroundColor = dateTypeInfo?.color || '#ffffff';
+
+  // 計算文字顏色（根據背景亮度自動選擇黑色或白色文字）
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : null;
+  };
+
+  const getLuminance = (hex: string) => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return 255;
+    return 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+  };
+
+  const textColor = getLuminance(backgroundColor) > 128 ? '#000000' : '#ffffff';
 
   // 格式化農曆日期
   const lunarText = dailyInfo?.lunarDate
@@ -71,8 +89,9 @@ export default function DailyInfoCell({ date, dailyInfo, dateTypesMap, onClick }
         minHeight: 80,
         padding: '8px',
         borderRadius: 8,
-        borderLeft: colorConfig ? `4px solid ${colorConfig.borderColor}` : '4px solid #d9d9d9',
-        backgroundColor: colorConfig?.bgColor || '#fafafa',
+        borderLeft: dateTypeInfo ? `4px solid ${backgroundColor}` : '4px solid #d9d9d9',
+        backgroundColor: backgroundColor,
+        color: textColor,
         cursor: 'pointer',
         transition: 'all 0.2s',
         display: 'flex',
@@ -95,12 +114,14 @@ export default function DailyInfoCell({ date, dailyInfo, dateTypesMap, onClick }
         </Text>
         {dateTypeInfo && (
           <Tag
-            color={colorConfig?.color}
             style={{
               margin: 0,
               fontSize: 10,
               padding: '0 4px',
               lineHeight: '18px',
+              backgroundColor: 'rgba(255,255,255,0.3)',
+              borderColor: 'rgba(255,255,255,0.5)',
+              color: textColor,
             }}
           >
             {dateTypeInfo.name}
@@ -112,13 +133,20 @@ export default function DailyInfoCell({ date, dailyInfo, dateTypesMap, onClick }
       {(lunarText || solarTerm) && (
         <Space size={4} style={{ flexWrap: 'wrap' }}>
           {lunarText && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
+            <Text style={{ fontSize: 11, color: textColor, opacity: 0.85 }}>
               <CalendarOutlined style={{ marginRight: 2 }} />
               {lunarText}
             </Text>
           )}
           {solarTerm && (
-            <Tag style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>
+            <Tag style={{
+              fontSize: 10,
+              margin: 0,
+              padding: '0 4px',
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              borderColor: 'rgba(255,255,255,0.3)',
+              color: textColor
+            }}>
               {solarTerm}
             </Tag>
           )}
@@ -127,7 +155,7 @@ export default function DailyInfoCell({ date, dailyInfo, dateTypesMap, onClick }
 
       {/* 生肖年份（僅在農曆新年顯示） */}
       {dailyInfo && dailyInfo.zodiac && dailyInfo.lunarDay === 1 && dailyInfo.lunarMonth === 1 && (
-        <Text type="secondary" style={{ fontSize: 11 }}>
+        <Text style={{ fontSize: 11, color: textColor, opacity: 0.85 }}>
           {dailyInfo.zodiac}年
         </Text>
       )}
@@ -135,9 +163,8 @@ export default function DailyInfoCell({ date, dailyInfo, dateTypesMap, onClick }
       {/* 備註預覽 */}
       {notePreview && (
         <Text
-          type="secondary"
           ellipsis={{ tooltip: dailyInfo?.dailyNote }}
-          style={{ fontSize: 11, display: 'block' }}
+          style={{ fontSize: 11, display: 'block', color: textColor, opacity: 0.85 }}
         >
           {notePreview}
         </Text>
@@ -145,7 +172,7 @@ export default function DailyInfoCell({ date, dailyInfo, dateTypesMap, onClick }
 
       {/* 宜忌標籤（若有） */}
       {dailyInfo?.suitableActivities && Array.isArray(dailyInfo.suitableActivities) && dailyInfo.suitableActivities.length > 0 && (
-        <Text type="secondary" style={{ fontSize: 10 }}>
+        <Text style={{ fontSize: 10, color: textColor, opacity: 0.85 }}>
           宜：{dailyInfo.suitableActivities.slice(0, 2).join('、')}
           {dailyInfo.suitableActivities.length > 2 && '...'}
         </Text>

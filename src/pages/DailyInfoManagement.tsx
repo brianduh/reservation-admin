@@ -34,7 +34,7 @@ export default function DailyInfoManagement() {
   const dateTypesMap = new Map<string, { name: string; color: string }>(
     (Array.isArray(dateTypes) ? dateTypes : []).map((dt: any) => [
       dt.id,
-      { name: dt.dateName, color: dt.dateCode },
+      { name: dt.dateName, color: dt.color || '#ffffff' },
     ])
   );
 

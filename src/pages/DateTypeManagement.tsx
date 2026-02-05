@@ -11,12 +11,14 @@ import {
   message,
   Popconfirm,
   Alert,
+  ColorPicker,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useDateTypes } from '../hooks/useDateTypes';
 import type { DateType } from '../api/date-types';
 import { useSearchParams } from 'react-router-dom';
 import { useRestaurantContext } from '../contexts/RestaurantContext';
+import type { Color } from 'antd/es/color-picker';
 
 export default function DateTypeManagement() {
   const { selectedRestaurant } = useRestaurantContext();
@@ -107,6 +109,26 @@ export default function DateTypeManagement() {
     { title: '代碼', dataIndex: 'dateCode', key: 'dateCode', width: 120 },
     { title: '名稱', dataIndex: 'dateName', key: 'dateName', width: 150 },
     { title: '說明', dataIndex: 'description', key: 'description', ellipsis: true },
+    {
+      title: '背景色',
+      dataIndex: 'color',
+      key: 'color',
+      width: 120,
+      render: (color: string) => (
+        <Space>
+          <div
+            style={{
+              width: 40,
+              height: 24,
+              backgroundColor: color || '#ffffff',
+              border: '1px solid #d9d9d9',
+              borderRadius: 4,
+            }}
+          />
+          <span style={{ fontSize: 12, color: '#666' }}>{color || '未設定'}</span>
+        </Space>
+      ),
+    },
     { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 80 },
     {
       title: '啟用',
@@ -204,6 +226,45 @@ export default function DateTypeManagement() {
             rules={[{ required: true, message: '請輸入排序順序' }]}
           >
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item
+            label="背景顏色"
+            name="color"
+            tooltip="用於日曆視圖顯示的背景色 (Hex 格式: #RRGGBB)"
+          >
+            <ColorPicker
+              format="hex"
+              valueFormat="hex"
+              showText
+              allowClear
+              style={{ width: '100%' }}
+              presets={[
+                {
+                  label: '推薦顏色',
+                  colors: [
+                    '#28a745', // 綠色 - 一般日
+                    '#ffc107', // 黃色 - 假日
+                    '#dc3545', // 紅色 - 休館日
+                    '#17a2b8', // 青色 - 特殊活動
+                    '#6f42c1', // 紫色 - 活動日
+                    '#fd7e14', // 橘色 - 促銷日
+                    '#6c757d', // 灰色
+                    '#000000', // 黑色
+                    '#ffffff', // 白色
+                  ],
+                },
+                {
+                  label: '常用顏色',
+                  colors: [
+                    '#F44336', '#E91E63', '#9C27B0', '#673AB7',
+                    '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4',
+                    '#009688', '#4CAF50', '#8BC34A', '#CDDC39',
+                    '#FFEB3B', '#FFC107', '#FF9800', '#FF5722',
+                  ],
+                },
+              ]}
+            />
           </Form.Item>
 
           <Form.Item
