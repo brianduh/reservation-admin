@@ -15,6 +15,13 @@ export interface TableCombinationItem {
   updatedAt: string;
 }
 
+export interface TableCombinationItemRequest {
+  tableId: string;
+  itemOrder: number;
+  isRequired?: boolean;
+  notes?: string;
+}
+
 export interface TableCombination {
   id: string;
   restaurantId: string;
@@ -36,6 +43,18 @@ export interface TableCombination {
   availabilityReason?: string;
 }
 
+export interface TableCombinationRequest {
+  combinationCode: string;
+  combinationName: string;
+  minGuests: number;
+  maxGuests: number;
+  sortOrder: number;
+  isActive: boolean;
+  conditions?: string;
+  notes?: string;
+  items: TableCombinationItemRequest[];
+}
+
 export const combinationsApi = {
   getByRestaurant: (restaurantId: string) =>
     client.get<TableCombination[]>(`/v1/restaurants/${restaurantId}/combinations`),
@@ -48,10 +67,10 @@ export const combinationsApi = {
       params: { guestCount }
     }),
 
-  create: (restaurantId: string, data: Partial<TableCombination>) =>
+  create: (restaurantId: string, data: TableCombinationRequest) =>
     client.post<TableCombination>(`/v1/restaurants/${restaurantId}/combinations`, data),
 
-  update: (restaurantId: string, combinationId: string, data: Partial<TableCombination>) =>
+  update: (restaurantId: string, combinationId: string, data: TableCombinationRequest) =>
     client.put<TableCombination>(`/v1/restaurants/${restaurantId}/combinations/${combinationId}`, data),
 
   delete: (restaurantId: string, combinationId: string) =>

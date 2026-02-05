@@ -56,6 +56,10 @@ export const tablesApi = {
   getByArea: (areaId: string) =>
     client.get<Table[]>(`/tables/area/${areaId}`),
 
+  // 查詢可組合的餐桌
+  getCombinableByRestaurant: (restaurantId: string) =>
+    client.get<Table[]>(`/tables/restaurant/${restaurantId}/combinable`),
+
   // 查詢單一餐桌
   getById: (id: string) =>
     client.get<Table>(`/tables/${id}`),

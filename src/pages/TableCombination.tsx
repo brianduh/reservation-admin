@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Table, Button, Tag, Modal, Form, Input, InputNumber, Switch, Space, message, Popconfirm, Alert } from 'antd';
+import { Table, Button, Tag, Modal, Form, Input, InputNumber, Switch, Space, message, Popconfirm, Alert, Collapse, Checkbox } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useCombinations } from '../hooks/useCombinations';
-import type { TableCombination } from '../api/combinations';
+import { useCombinableTables } from '../hooks/useCombinableTables';
+import type { TableCombination, TableCombinationRequest, TableCombinationItemRequest } from '../api/combinations';
+import type { Table } from '../api/tables';
 import { useSearchParams } from 'react-router-dom';
 import { useRestaurantContext } from '../contexts/RestaurantContext';
 
@@ -15,8 +17,10 @@ export default function TableCombinationManagement() {
 
   // 必須在所有 hooks 調用之後才能有條件返回
   const { data, isLoading, refetch } = useCombinations(restaurantId);
+  const { data: combinableTables = [] } = useCombinableTables(restaurantId);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<TableCombination | null>(null);
+  const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
   const [form] = Form.useForm();
 
   // 如果沒有選定餐廳，顯示提示訊息（在所有 hooks 之後）
@@ -36,12 +40,14 @@ export default function TableCombinationManagement() {
   const handleAdd = () => {
     setEditingRecord(null);
     form.resetFields();
+    setSelectedTableIds([]);
     setIsModalOpen(true);
   };
 
   const handleEdit = (record: TableCombination) => {
     setEditingRecord(record);
     form.setFieldsValue(record);
+    setSelectedTableIds(record.items.map(item => item.tableId));
     setIsModalOpen(true);
   };
 
@@ -52,14 +58,50 @@ export default function TableCombinationManagement() {
 
   const handleSubmit = async () => {
     try {
-      await form.validateFields();
-      // TODO: 實作新增/更新功能
-      message.success('操作成功（待實作）');
+      const values = await form.validateFields();
+
+      if (selectedTableIds.length === 0) {
+        message.error('請至少選擇一個餐桌');
+        return;
+      }
+
+      // 檢查是否跨區域
+      const selectedTables = combinableTables.filter(t =>
+        selectedTableIds.includes(t.id)
+      );
+      const areaIds = [...new Set(selectedTables.map(t => t.areaId))];
+      if (areaIds.length > 1) {
+        message.error('所有餐桌必須屬於同一區域');
+        return;
+      }
+
+      // 組裝 items
+      const items: TableCombinationItemRequest[] = selectedTableIds.map((tableId, index) => ({
+        tableId,
+        itemOrder: index + 1,
+        isRequired: true,
+      }));
+
+      const request: TableCombinationRequest = {
+        ...values,
+        items,
+      };
+
+      if (editingRecord) {
+        await combinationsApi.update(restaurantId, editingRecord.id, request);
+        message.success('更新成功');
+      } else {
+        await combinationsApi.create(restaurantId, request);
+        message.success('新增成功');
+      }
+
       setIsModalOpen(false);
       form.resetFields();
+      setSelectedTableIds([]);
       refetch();
     } catch (error) {
-      message.error('操作失敗');
+      console.error('操作失敗:', error);
+      message.error(editingRecord ? '更新失敗' : '新增失敗');
     }
   };
 
@@ -159,8 +201,11 @@ export default function TableCombinationManagement() {
         onCancel={() => {
           setIsModalOpen(false);
           form.resetFields();
+          setSelectedTableIds([]);
         }}
-        width={700}
+        width={800}
+        okText="確定"
+        cancelText="取消"
       >
         <Form form={form} layout="vertical">
           <Form.Item
@@ -203,6 +248,63 @@ export default function TableCombinationManagement() {
             rules={[{ required: true, message: '請輸入排序順序' }]}
           >
             <InputNumber min={1} style={{ width: 150 }} />
+          </Form.Item>
+
+          <Form.Item label="選擇餐桌">
+            {combinableTables.length > 0 ? (
+              (() => {
+                // 依區域分組
+                const groupedByArea = combinableTables.reduce((acc, table) => {
+                  const areaName = table.areaName || '未分區';
+                  if (!acc[areaName]) acc[areaName] = [];
+                  acc[areaName].push(table);
+                  return acc;
+                }, {} as Record<string, Table[]>);
+
+                return (
+                  <Collapse defaultActiveKey={Object.keys(groupedByArea)} size="small">
+                    {Object.entries(groupedByArea).map(([areaName, tables]) => (
+                      <Collapse.Panel
+                        key={areaName}
+                        header={<Space><span>{areaName}</span><Tag>{tables.length}桌</Tag></Space>}
+                      >
+                        <Checkbox.Group
+                          value={selectedTableIds}
+                          onChange={(checkedValues) => setSelectedTableIds(checkedValues as string[])}
+                          style={{ width: '100%' }}
+                        >
+                          <Space direction="vertical" style={{ width: '100%' }}>
+                            {tables.map((table) => (
+                              <Checkbox key={table.id} value={table.id}>
+                                <Space>
+                                  <span>{table.tableName} ({table.capacity}人)</span>
+                                  <Tag>{table.tableType}</Tag>
+                                </Space>
+                              </Checkbox>
+                            ))}
+                          </Space>
+                        </Checkbox.Group>
+                      </Collapse.Panel>
+                    ))}
+                  </Collapse>
+                );
+              })()
+            ) : (
+              <div style={{ color: '#999' }}>此餐廳沒有可組合的餐桌</div>
+            )}
+            {selectedTableIds.length > 0 && (
+              <div style={{ marginTop: 12, padding: '8px', background: '#f0f5ff', borderRadius: '4px' }}>
+                <Space>
+                  <span>已選擇</span>
+                  <Tag color="green">{selectedTableIds.length}個桌號</Tag>
+                  <span>：</span>
+                  {combinableTables
+                    .filter(t => selectedTableIds.includes(t.id))
+                    .map(t => t.tableName)
+                    .join(' + ')}
+                </Space>
+              </div>
+            )}
           </Form.Item>
 
           <Form.Item label="說明" name="notes">
