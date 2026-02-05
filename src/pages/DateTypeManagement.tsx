@@ -85,8 +85,15 @@ export default function DateTypeManagement() {
         return;
       }
 
+      // 處理顏色值：如果是 Color 物件，轉換為 Hex 字串
+      let colorValue = values.color;
+      if (colorValue && typeof colorValue === 'object' && 'toHexString' in colorValue) {
+        colorValue = colorValue.toHexString();
+      }
+
       const data = {
         ...values,
+        color: colorValue,
         restaurantId: actualRestaurantId,
       };
 
@@ -101,7 +108,8 @@ export default function DateTypeManagement() {
       setIsModalOpen(false);
       form.resetFields();
     } catch (error) {
-      message.error('操作失敗');
+      console.error('操作失敗:', error);
+      message.error('操作失敗：' + (error as Error).message);
     }
   };
 
