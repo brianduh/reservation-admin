@@ -4,6 +4,9 @@ import type {
   DailyInfoRequest,
   BatchUpdateRequest,
   BatchUpdateResult,
+  InitializeStatusResponse,
+  InitializeYearRequest,
+  InitializeYearResponse,
 } from '../types/daily-info';
 
 export const dailyInfoApi = {
@@ -52,7 +55,16 @@ export const dailyInfoApi = {
   delete: (id: string) =>
     client.delete(`/daily-info/${id}`),
 
-  // 批次更新日期性質（前端循環版本）
+  // 更新日期性質 - 使用 PATCH /date/{date}/date-type endpoint
+  updateDateType: (date: string, restaurantId: string | undefined, dateTypeId: string) =>
+    client.patch<DailyInfo>(`/daily-info/date/${date}/date-type`, null, {
+      params: {
+        ...(restaurantId && { restaurantId }),
+        dateTypeId,
+      },
+    }),
+
+  // 批次更新日期性質（使用 PATCH endpoint，不需要提供農曆資訊）
   batchUpdateDateType: async (data: BatchUpdateRequest): Promise<BatchUpdateResult> => {
     const results: BatchUpdateResult = {
       success: 0,
@@ -68,32 +80,24 @@ export const dailyInfoApi = {
     while (current.isBefore(end) || current.isSame(end, 'day')) {
       const dateStr = current.format('YYYY-MM-DD');
       try {
-        // 嘗試查詢是否已存在 (使用 /date/{date} endpoint)
-        try {
-          const existing = await client.get<DailyInfo>(`/daily-info/date/${dateStr}`, {
-            params: data.restaurantId ? { restaurantId: data.restaurantId } : undefined,
-          });
-
-          // 更新現有記錄
-          await client.put<DailyInfo>(`/daily-info/${(existing as any).id}`, {
-            targetDate: dateStr,
+        // 使用 PATCH endpoint 更新 dateTypeId
+        await client.patch<DailyInfo>(`/daily-info/date/${dateStr}/date-type`, null, {
+          params: {
             ...(data.restaurantId && { restaurantId: data.restaurantId }),
             dateTypeId: data.dateTypeId,
-            ...(data.dailyNote && { dailyNote: data.dailyNote }),
-          });
-        } catch (error: any) {
-          // 404 表示不存在，建立新記錄
-          if (error.response?.status === 404) {
-            await client.post<DailyInfo>('/daily-info', {
-              targetDate: dateStr,
+          },
+        });
+
+        // 如果有備註，也一併更新
+        if (data.dailyNote) {
+          await client.patch<DailyInfo>(`/daily-info/date/${dateStr}/note`, null, {
+            params: {
               ...(data.restaurantId && { restaurantId: data.restaurantId }),
-              dateTypeId: data.dateTypeId,
-              ...(data.dailyNote && { dailyNote: data.dailyNote }),
-            });
-          } else {
-            throw error;
-          }
+              dailyNote: data.dailyNote,
+            },
+          });
         }
+
         results.success++;
       } catch (error: any) {
         results.failed++;
@@ -107,4 +111,16 @@ export const dailyInfoApi = {
 
     return results;
   },
+
+  // 檢查年度初始化狀態
+  checkInitializeStatus: (year: number, restaurantId: string) =>
+    client.get<InitializeStatusResponse>('/daily-info/initialize/status', {
+      params: { restaurantId, year },
+    }),
+
+  // 初始化年度資料
+  initializeYear: ({ restaurantId, year }: InitializeYearRequest) =>
+    client.post<InitializeYearResponse>('/daily-info/initialize', null, {
+      params: { restaurantId, year },
+    }),
 };

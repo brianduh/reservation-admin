@@ -3,6 +3,11 @@ import { dailyInfoApi } from '../api/daily-info';
 import type { DailyInfoRequest, BatchUpdateRequest } from '../types/daily-info';
 import dayjs from 'dayjs';
 
+export interface InitializeYearVariables {
+  restaurantId: string;
+  year: number;
+}
+
 export const useDailyInfos = (restaurantId?: string) => {
   const queryClient = useQueryClient();
 
@@ -70,19 +75,43 @@ export const useDailyInfos = (restaurantId?: string) => {
     },
   });
 
+  // 查詢年度初始化狀態
+  const useInitializeStatusQuery = (year: number, restaurantId: string) => {
+    return useQuery({
+      queryKey: ['dailyInfos', 'initializeStatus', year, restaurantId],
+      queryFn: () => dailyInfoApi.checkInitializeStatus(year, restaurantId),
+      enabled: !!year && !!restaurantId,
+      staleTime: 2 * 60 * 1000, // 2 分鐘快取
+      refetchOnWindowFocus: false,
+    });
+  };
+
+  // 初始化年度資料
+  const initializeYearMutation = useMutation({
+    mutationFn: ({ restaurantId, year }: InitializeYearVariables) =>
+      dailyInfoApi.initializeYear({ restaurantId, year }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dailyInfos'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyInfos', 'initializeStatus'] });
+    },
+  });
+
   return {
     useMonthQuery,
     useDateQuery,
+    useInitializeStatusQuery,
     create: createMutation.mutateAsync,
     update: updateMutation.mutateAsync,
     updateNote: updateNoteMutation.mutateAsync,
     delete: deleteMutation.mutateAsync,
     batchUpdate: batchUpdateMutation.mutateAsync,
+    initializeYear: initializeYearMutation.mutateAsync,
     isMutating:
       createMutation.isPending ||
       updateMutation.isPending ||
       updateNoteMutation.isPending ||
       deleteMutation.isPending ||
-      batchUpdateMutation.isPending,
+      batchUpdateMutation.isPending ||
+      initializeYearMutation.isPending,
   };
 };

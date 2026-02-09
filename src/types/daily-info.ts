@@ -37,3 +37,27 @@ export interface BatchUpdateResult {
   failed: number;
   errors: Array<{ date: string; error: string }>;
 }
+
+export interface InitializeStatusResponse {
+  restaurantId: string;
+  year: number;
+  initialized: boolean;
+  count: number;
+  expectedCount: number;
+}
+
+export interface InitializeYearRequest {
+  restaurantId: string;
+  year: number;
+}
+
+export interface InitializeYearResponse {
+  restaurantId: string;
+  year: number;
+  successCount: number;
+  failedCount: number;
+  totalCount: number;
+  weekdayCount: number;
+  weekendCount: number;
+  errorMessage?: string;
+}

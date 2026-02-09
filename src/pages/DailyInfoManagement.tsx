@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button, Alert, message } from 'antd';
-import { CalendarOutlined } from '@ant-design/icons';
+import { Button, Alert, message, Modal } from 'antd';
+import { CalendarOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useRestaurantContext } from '../contexts/RestaurantContext';
 import { useDailyInfos } from '../hooks/useDailyInfos';
@@ -13,7 +13,8 @@ import type { BatchUpdateRequest } from '../types/daily-info';
 
 export default function DailyInfoManagement() {
   const { selectedRestaurant } = useRestaurantContext();
-  const { useMonthQuery, create, update, batchUpdate, isMutating } = useDailyInfos(selectedRestaurant?.id);
+  const { useMonthQuery, useInitializeStatusQuery, create, update, batchUpdate, initializeYear, isMutating } =
+    useDailyInfos(selectedRestaurant?.id);
   const { dateTypes } = useDateTypes(selectedRestaurant?.id);
 
   // 月份狀態
@@ -23,6 +24,50 @@ export default function DailyInfoManagement() {
   // 查詢當月份資料 - monthlyData 在 runtime 是 DailyInfo[] array
   const { data: monthlyData, isLoading } = useMonthQuery(currentYear, currentMonth);
   const safeMonthlyData = (Array.isArray(monthlyData) ? monthlyData : []) as DailyInfo[];
+
+  // 查詢年度初始化狀態
+  const { data: initializeStatus, isLoading: checkingInitializeStatus } = useInitializeStatusQuery(
+    currentYear,
+    selectedRestaurant?.id || ''
+  );
+
+  // 初始化年度資料
+  const handleInitializeYear = async () => {
+    if (!selectedRestaurant?.id) return;
+
+    Modal.confirm({
+      title: `初始化 ${currentYear} 年度資料`,
+      icon: <ExclamationCircleOutlined />,
+      content: (
+        <div>
+          <p>此操作將為餐廳建立 {currentYear} 年度共 365 天的每日資訊：</p>
+          <ul style={{ marginLeft: 20, marginTop: 10 }}>
+            <li>週一到週五：預設為「平日」</li>
+            <li>週六、週日：預設為「假日」</li>
+          </ul>
+          <p style={{ marginTop: 10, color: '#ff4d4f' }}>
+            確定要執行初始化嗎？
+          </p>
+        </div>
+      ),
+      okText: '確定初始化',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const result = await initializeYear({ restaurantId: selectedRestaurant.id, year: currentYear });
+          if (result.errorMessage) {
+            message.warning(result.errorMessage);
+          } else {
+            message.success(
+              `初始化完成！共建立 ${result.totalCount} 筆資料（平日 ${result.weekdayCount} 筆，假日 ${result.weekendCount} 筆）`
+            );
+          }
+        } catch (error: any) {
+          message.error(error.response?.data?.message || '初始化失敗');
+        }
+      },
+    });
+  };
 
   // Modal 狀態
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -130,14 +175,37 @@ export default function DailyInfoManagement() {
             點擊日期格子編輯單日資訊，或使用批次設定功能一次設定多日
           </p>
         </div>
-        <Button
-          type="primary"
-          icon={<CalendarOutlined />}
-          onClick={() => setBatchModalOpen(true)}
-        >
-          批次設定
-        </Button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* 顯示初始化按鈕：當年度未初始化時顯示 */}
+          {!checkingInitializeStatus &&
+            initializeStatus &&
+            !initializeStatus.initialized && (
+              <Button onClick={handleInitializeYear} disabled={isMutating}>
+                初始化 {currentYear} 年度
+              </Button>
+            )}
+          <Button
+            type="primary"
+            icon={<CalendarOutlined />}
+            onClick={() => setBatchModalOpen(true)}
+          >
+            批次設定
+          </Button>
+        </div>
       </div>
+
+      {/* 顯示未初始化提示 */}
+      {!checkingInitializeStatus &&
+        initializeStatus &&
+        !initializeStatus.initialized && (
+          <Alert
+            message={`${currentYear} 年度尚未初始化`}
+            description={`目前 ${currentYear} 年度尚未建立每日資訊資料。點擊右上方的「初始化 ${currentYear} 年度」按鈕，系統將自動建立 365 天的資料，週一到週五��設為「平日」，週六日預設為「假日」。`}
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
 
       {/* 日曆組件 */}
       {isLoading ? (
